@@ -1,0 +1,150 @@
+version: '3.8'
+
+services:
+  # -------------------------------------------------------------
+  # Base de Datos MySQL 8.0 (3 esquemas: db_usuarios, db_productos, db_transacciones)
+  # -------------------------------------------------------------
+  mysql-db:
+    image: mysql:8.0
+    container_name: poe-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_usuarios
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql-init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - poe-network
+
+  # -------------------------------------------------------------
+  # Service Discovery: Eureka Server (Puerto 8761)
+  # -------------------------------------------------------------
+  eureka-server:
+    build:
+      context: ./modulo-eureka
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    restart: always
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8761
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/eureka/apps || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - poe-network
+
+  # -------------------------------------------------------------
+  # API Gateway: Spring Cloud Gateway Server WebMVC (Puerto 8080)
+  # -------------------------------------------------------------
+  gateway-server:
+    build:
+      context: ./modulo-gateway
+      dockerfile: Dockerfile
+    container_name: gateway-server
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SERVER_PORT=8080
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - poe-network
+
+  # -------------------------------------------------------------
+  # Microservicio: Usuarios (db_usuarios)
+  # -------------------------------------------------------------
+  servicio-usuarios:
+    build:
+      context: ./servicio-usuarios
+      dockerfile: Dockerfile
+    container_name: servicio-usuarios
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/db_usuarios?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - poe-network
+
+  # -------------------------------------------------------------
+  # Microservicio: Productos (db_productos)
+  # -------------------------------------------------------------
+  servicio-productos:
+    build:
+      context: ./servicio-productos
+      dockerfile: Dockerfile
+    container_name: servicio-productos
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/db_productos?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - poe-network
+
+  # -------------------------------------------------------------
+  # Microservicio: Transacciones (db_transacciones)
+  # -------------------------------------------------------------
+  servicio-transacciones:
+    build:
+      context: ./servicio-transacciones
+      dockerfile: Dockerfile
+    container_name: servicio-transacciones
+    restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql-db:3306/db_transacciones?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      servicio-usuarios:
+        condition: service_started
+      servicio-productos:
+        condition: service_started
+    networks:
+      - poe-network
+
+networks:
+  poe-network:
+    driver: bridge
+
+volumes:
+  mysql_data:

@@ -1,0 +1,115 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: modulo-gateway
+  cloud:
+    gateway:
+      mvc:
+        routes:
+          # =================================================================
+          # Microservicio de Usuarios (Rutas v1, v2 y Swagger Docs)
+          # =================================================================
+          - id: servicio-usuarios-v1
+            uri: lb://servicio-usuarios
+            predicates:
+              - Path=/api/v1/usuarios/**, /api/v1/roles/**
+          - id: servicio-usuarios-v2
+            uri: lb://servicio-usuarios
+            predicates:
+              - Path=/api/v2/usuarios/**, /api/v2/roles/**
+          - id: servicio-usuarios-docs
+            uri: lb://servicio-usuarios
+            predicates:
+              - Path=/usuarios-docs/**
+            filters:
+              - RewritePath=/usuarios-docs/(?<segment>.*), /${segment}
+
+          # =================================================================
+          # Microservicio de Productos (Rutas v1, v2 y Swagger Docs)
+          # =================================================================
+          - id: servicio-productos-v1
+            uri: lb://servicio-productos
+            predicates:
+              - Path=/api/v1/productos/**, /api/v1/categorias/**
+          - id: servicio-productos-v2
+            uri: lb://servicio-productos
+            predicates:
+              - Path=/api/v2/productos/**, /api/v2/categorias/**
+          - id: servicio-productos-docs
+            uri: lb://servicio-productos
+            predicates:
+              - Path=/productos-docs/**
+            filters:
+              - RewritePath=/productos-docs/(?<segment>.*), /${segment}
+
+          # =================================================================
+          # Microservicio de Transacciones (Rutas v1, v2 y Swagger Docs)
+          # =================================================================
+          - id: servicio-transacciones-v1
+            uri: lb://servicio-transacciones
+            predicates:
+              - Path=/api/v1/transacciones/**, /api/v1/estados/**, /api/v1/medios-pago/**
+          - id: servicio-transacciones-v2
+            uri: lb://servicio-transacciones
+            predicates:
+              - Path=/api/v2/transacciones/**, /api/v2/estados/**, /api/v2/medios-pago/**
+          - id: servicio-transacciones-docs
+            uri: lb://servicio-transacciones
+            predicates:
+              - Path=/transacciones-docs/**
+            filters:
+              - RewritePath=/transacciones-docs/(?<segment>.*), /${segment}
+
+# =================================================================
+# Documentación Centralizada Swagger UI (Springdoc OpenAPI)
+# =================================================================
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: "1. Servicio Usuarios"
+        url: "/usuarios-docs/v3/api-docs"
+      - name: "2. Servicio Productos"
+        url: "/productos-docs/v3/api-docs"
+      - name: "3. Servicio Transacciones"
+        url: "/transacciones-docs/v3/api-docs"
+
+# =================================================================
+# Cliente Eureka Discovery
+# =================================================================
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+# =================================================================
+# Actuator Health
+# =================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+---
+# Perfil Docker
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
