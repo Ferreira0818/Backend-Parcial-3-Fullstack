@@ -17,8 +17,7 @@
         <module>modulo-gateway</module>
         <module>servicio-usuarios</module>
         <module>servicio-productos</module>
-        <!-- Los modulos de negocio se habilitan en el paso 4 -->
-        <!-- <module>servicio-transacciones</module> -->
+        <module>servicio-transacciones</module>
     </modules>
 
     <properties>
