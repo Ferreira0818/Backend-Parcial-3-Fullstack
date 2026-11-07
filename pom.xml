@@ -16,8 +16,8 @@
         <module>modulo-eureka</module>
         <module>modulo-gateway</module>
         <module>servicio-usuarios</module>
-        <!-- Los modulos de negocio se habilitan en los pasos 3 y 4 -->
-        <!-- <module>servicio-productos</module> -->
+        <module>servicio-productos</module>
+        <!-- Los modulos de negocio se habilitan en el paso 4 -->
         <!-- <module>servicio-transacciones</module> -->
     </modules>
 
